@@ -47,10 +47,16 @@ module.exports = function (bot) {
     }
 
     plugin.addCommand(['pf', 'phabfeed'], function (cmd) {
-      // TODO: Restrict to admin list
+      if (bot.config.get('admins').indexOf(cmd.nick) == -1) return;
       var args = cmd.args.split(/\s+/);
+
       switch(args[0]) {
-        case 'now':
+        case 'help':
+          bot.say(cmd.network, cmd.replyto, 'Phabricator feed monitor commands:');
+          bot.say(cmd.network, cmd.replyto, 'start, stop - Change running state.');
+          bot.say(cmd.network, cmd.replyto, 'interval <minutes> - Change time between feed readings.');
+          break;
+        case 'fetch':
           fetchFeed(cmd.network, cmd.target);
           break;
         case 'interval':
