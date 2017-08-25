@@ -69,3 +69,9 @@ plugins:
         api_key:
         url_template: '[YouTube] {{{title}}} | Length: {{length}} | Channel: {{channel}} | Uploaded: {{date}} | Views: {{views}} | +{{likes}} -{{dislikes}} | Comments: {{comments}}'
         search_template: '[YouTube] {{{title}}} | {{url}} | Length: {{length}} | Channel: {{channel}} | Uploaded: {{date}} | Views: {{views}} | +{{likes}} -{{dislikes}} | Comments: {{comments}}'
+    phabfeed:
+        ckeyfile: './db/lastSeenPhabKey.txt'
+        apitoken: ''
+        server: phabricator.example.address
+        outputs:
+            "network": "#channel"
