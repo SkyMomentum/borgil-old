@@ -1,6 +1,7 @@
 const fs = require('fs');
 const https = require('https');
 const querystring = require('querystring');
+const irc = require('irc');
 
 module.exports = function (bot) {
     var plugin = this;
@@ -10,6 +11,8 @@ module.exports = function (bot) {
     var phabServer = bot.config.get('plugins.phabfeed.server', '');
     var phabInterval = bot.config.get('plugins.phabfeed.fetchinterval', '10');
     var phabOutputs = bot.config.get('plugins.phabfeed.outputs');
+    var tag = bot.config.get('plugins.phabfeed.tag', 'Phabricator');
+    var tagColour = bot.config.get('plugins.phabfeed.tagcolour', 'dark_green');
     var autoStartFetch = bot.config.get('plugins.phabfeed.autostart', 'true');
 
     var fetchInterval;
@@ -24,6 +27,8 @@ module.exports = function (bot) {
       bot.error('Phabricator server address not present in configuration file');
       return;
     }
+
+    const msgPrefix = '[' + irc.colors.wrap(tagColour, tag) + '] '
 
     function setLastSeen(chronoKey = null) {
       if (chronoKey || chronoKey === 0) {
@@ -42,6 +47,7 @@ module.exports = function (bot) {
     }
 
     plugin.addCommand(['pf', 'phabfeed'], function (cmd) {
+      // TODO: Restrict to admin list
       var args = cmd.args.split(/\s+/);
       switch(args[0]) {
         case 'now':
@@ -65,9 +71,11 @@ module.exports = function (bot) {
           bot.say(cmd.network, cmd.replyto, 'Stopping reads of ' + phabServer);
           stopAutoFetch();
           break;
+        // Debugging utility commands
         case 'setseen':
-          setLastSeen(args1);
+          setLastSeen(args[1]);
           bot.say(cmd.network, cmd.replyto, 'Setting last seen ChronologicalKey to ' + before);
+          break;
         case 'clearseen':
           setLastSeen(0);
           break;
@@ -118,7 +126,7 @@ module.exports = function (bot) {
           var newestResponse = true;
           var jsonResp = JSON.parse(respBuffer);
           for(var phid in jsonResp.result) {
-            bot.say(network, target, jsonResp.result[phid].text);
+            bot.say(network, target, msgPrefix + jsonResp.result[phid].text);
             //log the chronokey
             if (newestResponse) {
               //fs.writeFileSync(phabKeyFilename, jsonResp.result[phid].chronologicalKey);
