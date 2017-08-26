@@ -104,6 +104,50 @@ module.exports = function (bot) {
         fetching = false;
     }
 
+    function phidRequest(phidList, callback) {
+      var numPhids = 0;
+      var queryObj = {
+        'api.token': phabApiToken
+      }
+      for (phid in phidList) {
+        queryObj['names[' + numPhids + ']'] = phidList[phid];
+        numPhids += 1;
+      }
+      var phidQuery = querystring.stringify(queryObj);
+      var options = {
+        hostname: phabServer,
+        path: '/api/phid.lookup',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(phidQuery)
+        }
+      };
+      var phidBuffer = "";
+      var retLookupTable;
+      const pReq = https.request(options, function (res){
+        res.on('data', function (chunk) {
+          phidBuffer += chunk.toString();
+        });
+        res.on('end', function (){
+          jsonPhids = JSON.parse(phidBuffer);
+          //TODO Handle errors
+          callback(jsonPhids.result);
+        });
+      });
+      pReq.write(phidQuery);
+      pReq.end();
+    }
+
+    function gatherPhids(results) {
+      var phidList = [];
+      for (item in results) {
+        phidList.push(results[item].authorPHID);
+        phidList.push(results[item].objectPHID);
+      }
+      return phidList;
+    }
+
     function fetchFeed(network, target){
       var respBuffer = "";
       setLastSeen();
@@ -131,15 +175,21 @@ module.exports = function (bot) {
           //TODO handle error responses
           var newestResponse = true;
           var jsonResp = JSON.parse(respBuffer);
-          for(var phid in jsonResp.result) {
-            bot.say(network, target, msgPrefix + jsonResp.result[phid].text);
-            //log the chronokey
-            if (newestResponse) {
-              //fs.writeFileSync(phabKeyFilename, jsonResp.result[phid].chronologicalKey);
-              setLastSeen(jsonResp.result[phid].chronologicalKey);
-              newestResponse = false;
+          var phidlist = gatherPhids(jsonResp.result);
+          phidRequest(phidlist, function (phidDict) {
+            for(var phid in jsonResp.result) {
+              const author = phidDict[jsonResp.result[phid].authorPHID].fullName;
+              const tasktext = phidDict[jsonResp.result[phid].objectPHID].fullName;
+              const taskuri = phidDict[jsonResp.result[phid].objectPHID].uri;
+              const msg = author + " - " + tasktext + " - " + taskuri;
+              bot.say(network, target, msgPrefix + msg);
+              //log the chronokey
+              if (newestResponse) {
+                setLastSeen(jsonResp.result[phid].chronologicalKey);
+                newestResponse = false;
+              }
             }
-          }
+           });
         });
       });
       req.write(feedQuery);
